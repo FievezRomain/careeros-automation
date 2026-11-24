@@ -1,0 +1,99 @@
+{
+  "name": "V1-056 Daily opportunity discovery",
+  "active": false,
+  "nodes": [
+    {
+      "id": "schedule",
+      "name": "Every fifteen minutes",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [0, 0],
+      "parameters": {"rule": {"interval": [{"field": "minutes", "minutesInterval": 15}]}}
+    },
+    {
+      "id": "prepare",
+      "name": "Prepare idempotent run",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [220, 0],
+      "parameters": {
+        "jsCode": "const now = new Date();\nconst bucket = new Date(Math.floor(now.getTime() / 900000) * 900000);\nconst stamp = bucket.toISOString().replace(/[-:.]/g, '');\nreturn [{json:{scheduledAt: bucket.toISOString(), idempotencyKey:`daily-discovery-${stamp}`, correlationId:`discovery-${stamp}`}}];"
+      }
+    },
+    {
+      "id": "attempt-1",
+      "name": "Run discovery attempt 1",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [460, 0],
+      "continueOnFail": true,
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.JOB_SERVICE_URL }}/v1/internal/discovery/runs",
+        "sendHeaders": true,
+        "headerParameters": {"parameters": [
+          {"name": "Authorization", "value": "=Bearer {{ $env.CAREEROS_AUTOMATION_TOKEN }}"},
+          {"name": "Idempotency-Key", "value": "={{ $('Prepare idempotent run').item.json.idempotencyKey }}"},
+          {"name": "X-Correlation-ID", "value": "={{ $('Prepare idempotent run').item.json.correlationId }}"}
+        ]},
+        "sendBody": true,
+        "contentType": "raw",
+        "rawContentType": "application/json",
+        "body": "={{ JSON.stringify({scheduledAt: $('Prepare idempotent run').item.json.scheduledAt}) }}",
+        "options": {"timeout": 120000, "response": {"response": {"fullResponse": true, "neverError": true}}}
+      }
+    },
+    {"id": "ok-1", "name": "Attempt 1 succeeded", "type": "n8n-nodes-base.if", "typeVersion": 2.2, "position": [700, 0], "parameters": {"conditions": {"number": [{"value1": "={{ $json.statusCode }}", "operation": "between", "value2": 200, "value3": 299}]}}},
+    {"id": "wait-30", "name": "Backoff 30 seconds", "type": "n8n-nodes-base.wait", "typeVersion": 1.1, "position": [900, 120], "parameters": {"amount": 30, "unit": "seconds"}},
+    {"id": "attempt-2", "name": "Run discovery attempt 2", "type": "n8n-nodes-base.httpRequest", "typeVersion": 4.2, "position": [1120, 120], "continueOnFail": true, "parameters": {"method": "POST", "url": "={{ $env.JOB_SERVICE_URL }}/v1/internal/discovery/runs", "sendHeaders": true, "headerParameters": {"parameters": [{"name": "Authorization", "value": "=Bearer {{ $env.CAREEROS_AUTOMATION_TOKEN }}"}, {"name": "Idempotency-Key", "value": "={{ $('Prepare idempotent run').item.json.idempotencyKey }}"}, {"name": "X-Correlation-ID", "value": "={{ $('Prepare idempotent run').item.json.correlationId }}"}]}, "sendBody": true, "contentType": "raw", "rawContentType": "application/json", "body": "={{ JSON.stringify({scheduledAt: $('Prepare idempotent run').item.json.scheduledAt}) }}", "options": {"timeout": 120000, "response": {"response": {"fullResponse": true, "neverError": true}}}}},
+    {"id": "ok-2", "name": "Attempt 2 succeeded", "type": "n8n-nodes-base.if", "typeVersion": 2.2, "position": [1360, 120], "parameters": {"conditions": {"number": [{"value1": "={{ $json.statusCode }}", "operation": "between", "value2": 200, "value3": 299}]}}},
+    {"id": "wait-120", "name": "Backoff 120 seconds", "type": "n8n-nodes-base.wait", "typeVersion": 1.1, "position": [1560, 240], "parameters": {"amount": 120, "unit": "seconds"}},
+    {"id": "attempt-3", "name": "Run discovery attempt 3", "type": "n8n-nodes-base.httpRequest", "typeVersion": 4.2, "position": [1780, 240], "continueOnFail": true, "parameters": {"method": "POST", "url": "={{ $env.JOB_SERVICE_URL }}/v1/internal/discovery/runs", "sendHeaders": true, "headerParameters": {"parameters": [{"name": "Authorization", "value": "=Bearer {{ $env.CAREEROS_AUTOMATION_TOKEN }}"}, {"name": "Idempotency-Key", "value": "={{ $('Prepare idempotent run').item.json.idempotencyKey }}"}, {"name": "X-Correlation-ID", "value": "={{ $('Prepare idempotent run').item.json.correlationId }}"}]}, "sendBody": true, "contentType": "raw", "rawContentType": "application/json", "body": "={{ JSON.stringify({scheduledAt: $('Prepare idempotent run').item.json.scheduledAt}) }}", "options": {"timeout": 120000, "response": {"response": {"fullResponse": true, "neverError": true}}}}},
+    {"id": "ok-3", "name": "Attempt 3 succeeded", "type": "n8n-nodes-base.if", "typeVersion": 2.2, "position": [2020, 240], "parameters": {"conditions": {"number": [{"value1": "={{ $json.statusCode }}", "operation": "between", "value2": 200, "value3": 299}]}}},
+    {"id": "wait-480", "name": "Backoff 480 seconds", "type": "n8n-nodes-base.wait", "typeVersion": 1.1, "position": [2220, 360], "parameters": {"amount": 480, "unit": "seconds"}},
+    {"id": "attempt-4", "name": "Run discovery attempt 4", "type": "n8n-nodes-base.httpRequest", "typeVersion": 4.2, "position": [2440, 360], "continueOnFail": true, "parameters": {"method": "POST", "url": "={{ $env.JOB_SERVICE_URL }}/v1/internal/discovery/runs", "sendHeaders": true, "headerParameters": {"parameters": [{"name": "Authorization", "value": "=Bearer {{ $env.CAREEROS_AUTOMATION_TOKEN }}"}, {"name": "Idempotency-Key", "value": "={{ $('Prepare idempotent run').item.json.idempotencyKey }}"}, {"name": "X-Correlation-ID", "value": "={{ $('Prepare idempotent run').item.json.correlationId }}"}]}, "sendBody": true, "contentType": "raw", "rawContentType": "application/json", "body": "={{ JSON.stringify({scheduledAt: $('Prepare idempotent run').item.json.scheduledAt}) }}", "options": {"timeout": 120000, "response": {"response": {"fullResponse": true, "neverError": true}}}}},
+    {"id": "ok-4", "name": "Attempt 4 succeeded", "type": "n8n-nodes-base.if", "typeVersion": 2.2, "position": [2680, 360], "parameters": {"conditions": {"number": [{"value1": "={{ $json.statusCode }}", "operation": "between", "value2": 200, "value3": 299}]}}},
+    {
+      "id": "dead-letter",
+      "name": "Publish minimal dead letter",
+      "type": "n8n-nodes-base.rabbitmq",
+      "typeVersion": 1,
+      "position": [2900, 480],
+      "parameters": {
+        "operation": "sendMessage",
+        "queue": "careeros.discovery.run.v1.dlq",
+        "message": "={{ JSON.stringify({schemaVersion:'1.0', idempotencyKey:$('Prepare idempotent run').item.json.idempotencyKey, correlationId:$('Prepare idempotent run').item.json.correlationId, failedAt:$now.toISO(), attempts:4, statusCode:$json.statusCode}) }}",
+        "options": {"persistent": true}
+      },
+      "credentials": {"rabbitmq": {"name": "CAREEROS_RABBITMQ"}}
+    }
+  ],
+  "connections": {
+    "Every fifteen minutes": {"main": [[{"node": "Prepare idempotent run", "type": "main", "index": 0}]]},
+    "Prepare idempotent run": {"main": [[{"node": "Run discovery attempt 1", "type": "main", "index": 0}]]},
+    "Run discovery attempt 1": {"main": [[{"node": "Attempt 1 succeeded", "type": "main", "index": 0}]]},
+    "Attempt 1 succeeded": {"main": [[], [{"node": "Backoff 30 seconds", "type": "main", "index": 0}]]},
+    "Backoff 30 seconds": {"main": [[{"node": "Run discovery attempt 2", "type": "main", "index": 0}]]},
+    "Run discovery attempt 2": {"main": [[{"node": "Attempt 2 succeeded", "type": "main", "index": 0}]]},
+    "Attempt 2 succeeded": {"main": [[], [{"node": "Backoff 120 seconds", "type": "main", "index": 0}]]},
+    "Backoff 120 seconds": {"main": [[{"node": "Run discovery attempt 3", "type": "main", "index": 0}]]},
+    "Run discovery attempt 3": {"main": [[{"node": "Attempt 3 succeeded", "type": "main", "index": 0}]]},
+    "Attempt 3 succeeded": {"main": [[], [{"node": "Backoff 480 seconds", "type": "main", "index": 0}]]},
+    "Backoff 480 seconds": {"main": [[{"node": "Run discovery attempt 4", "type": "main", "index": 0}]]},
+    "Run discovery attempt 4": {"main": [[{"node": "Attempt 4 succeeded", "type": "main", "index": 0}]]},
+    "Attempt 4 succeeded": {"main": [[], [{"node": "Publish minimal dead letter", "type": "main", "index": 0}]]}
+  },
+  "settings": {"executionOrder": "v1", "saveDataErrorExecution": "none", "saveDataSuccessExecution": "none"},
+  "meta": {
+    "careeros": {
+      "story": "V1-056",
+      "schedule": "every 15 minutes; job-service enforces each profile timezone/window and once-per-local-day eligibility",
+      "idempotency": "one stable key per 15-minute UTC bucket",
+      "retryBackoffSeconds": [30, 120, 480],
+      "deadLetterQueue": "careeros.discovery.run.v1.dlq",
+      "credentials": ["CAREEROS_RABBITMQ", "CAREEROS_AUTOMATION_TOKEN"],
+      "sensitiveLogging": "disabled"
+    }
+  },
+  "versionId": "00000000-0000-4000-8000-000000000057"
+}

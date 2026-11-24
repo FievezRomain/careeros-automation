@@ -1,0 +1,77 @@
+{
+  "name": "V1-056 Profile search projection",
+  "active": false,
+  "nodes": [
+    {
+      "id": "profile-event",
+      "name": "Profile match-relevant change",
+      "type": "n8n-nodes-base.rabbitmqTrigger",
+      "typeVersion": 1,
+      "position": [0, 0],
+      "parameters": {
+        "queue": "careeros.profile.match-relevant-change.v1",
+        "options": {
+          "acknowledge": "executionFinishesSuccessfully",
+          "durable": true,
+          "jsonParseBody": true
+        }
+      },
+      "credentials": {
+        "rabbitmq": {
+          "name": "CAREEROS_RABBITMQ"
+        }
+      }
+    },
+    {
+      "id": "validate-event",
+      "name": "Validate versioned event",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [240, 0],
+      "parameters": {
+        "jsCode": "const event = $json;\nif (event.eventType !== 'profile.match-relevant-change.v1' || event.schemaVersion !== '1.0') throw new Error('unsupported profile event');\nfor (const key of ['eventId','correlationId','idempotencyKey','tenantId','accountId','criteriaVersionId','state','schedule','searchSignature']) if (event[key] == null) throw new Error(`missing ${key}`);\nreturn [{json: event}];"
+      }
+    },
+    {
+      "id": "forward-snapshot",
+      "name": "Synchronize job discovery projection",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [500, 0],
+      "retryOnFail": true,
+      "maxTries": 4,
+      "waitBetweenTries": 30000,
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.JOB_SERVICE_URL }}/v1/internal/discovery/search-snapshots",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {"name": "Authorization", "value": "=Bearer {{ $env.CAREEROS_AUTOMATION_TOKEN }}"},
+            {"name": "X-Correlation-ID", "value": "={{ $json.correlationId }}"}
+          ]
+        },
+        "sendBody": true,
+        "contentType": "raw",
+        "rawContentType": "application/json",
+        "body": "={{ JSON.stringify($json) }}",
+        "options": {"timeout": 20000}
+      }
+    }
+  ],
+  "connections": {
+    "Profile match-relevant change": {"main": [[{"node": "Validate versioned event", "type": "main", "index": 0}]]},
+    "Validate versioned event": {"main": [[{"node": "Synchronize job discovery projection", "type": "main", "index": 0}]]}
+  },
+  "settings": {"executionOrder": "v1"},
+  "meta": {
+    "careeros": {
+      "story": "V1-056",
+      "idempotency": "profile eventId and criteriaVersionId",
+      "credentials": ["CAREEROS_RABBITMQ", "CAREEROS_AUTOMATION_TOKEN"],
+      "sensitiveLogging": "disabled",
+      "deadLetter": "careeros.profile.match-relevant-change.v1.dlq"
+    }
+  },
+  "versionId": "00000000-0000-4000-8000-000000000056"
+}
